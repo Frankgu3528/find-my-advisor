@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FindMyAdvisor · Personalized Research Advisor Matching via Deep Research</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #f5f0e8;
+  --ink: #1a1612;
+  --ink2: #3d3830;
+  --muted: #8a8070;
+  --rule: #d5cfc4;
+  --accent: #c0392b;
+  --accent2: #2c6e49;
+  --accent3: #1a5276;
+  --gold: #b7860b;
+  --serif: 'DM Serif Display', Georgia, serif;
+  --sans: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { background:var(--cream); color:var(--ink); font-family:var(--sans); font-size:16px; line-height:1.6; }
+
+.progress { position:fixed; top:0; left:0; right:0; height:2px; background:var(--rule); z-index:100; }
+.progress-fill { height:100%; background:var(--accent); transition:width .3s ease; }
+.nav { position:fixed; bottom:28px; right:28px; display:flex; gap:8px; z-index:100; }
+.nav-btn { width:36px; height:36px; border:1px solid var(--rule); background:var(--cream); border-radius:50%; cursor:pointer; font-size:14px; color:var(--ink2); display:flex; align-items:center; justify-content:center; transition:all .15s; font-family:var(--sans); }
+.nav-btn:hover { background:var(--ink); color:var(--cream); border-color:var(--ink); }
+
+.slide { width:100%; min-height:100vh; padding:72px 10% 60px; display:flex; flex-direction:column; justify-content:center; border-bottom:1px solid var(--rule); position:relative; overflow:hidden; }
+.slide-num { position:absolute; top:28px; right:36px; font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.1em; }
+.slide-label { font-family:var(--mono); font-size:10px; letter-spacing:.25em; color:var(--muted); text-transform:uppercase; margin-bottom:40px; display:flex; align-items:center; gap:12px; }
+.slide-label::after { content:''; flex:1; height:1px; background:var(--rule); }
+h2 { font-family:var(--serif); font-size:clamp(26px,3.2vw,46px); line-height:1.12; margin-bottom:40px; max-width:700px; }
+.pull-quote { border-left:3px solid var(--accent); padding:14px 22px; font-family:var(--serif); font-size:17px; font-style:italic; color:var(--ink2); max-width:580px; }
+
+/* Animations */
+.slide > * { opacity:0; transform:translateY(14px); transition:opacity .5s ease, transform .5s ease; }
+.slide.visible > * { opacity:1; transform:translateY(0); }
+.slide.visible > *:nth-child(2){transition-delay:.08s}
+.slide.visible > *:nth-child(3){transition-delay:.16s}
+.slide.visible > *:nth-child(4){transition-delay:.24s}
+.slide.visible > *:nth-child(5){transition-delay:.32s}
+.slide.visible > *:nth-child(6){transition-delay:.40s}
+.slide.visible > *:nth-child(7){transition-delay:.48s}
+.slide.visible > *:nth-child(8){transition-delay:.56s}
+
+/* ── S1 TITLE ── */
+#s1 { background:var(--ink); color:var(--cream); }
+#s1 .bg-grid { position:absolute; right:0; top:0; bottom:0; width:44%; background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; }
+#s1 .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.22em; color:var(--muted); margin-bottom:28px; text-transform:uppercase; }
+#s1 h1 { font-family:var(--serif); font-size:clamp(34px,5vw,66px); line-height:1.08; color:var(--cream); margin-bottom:22px; max-width:820px; }
+#s1 h1 em { font-style:italic; color:#e8c87a; }
+#s1 .subtitle { font-size:15px; font-weight:300; color:rgba(245,240,232,.5); max-width:500px; line-height:1.7; margin-bottom:52px; }
+.author-line { display:flex; align-items:center; gap:16px; border-top:1px solid rgba(255,255,255,.1); padding-top:24px; }
+.author-line .name { font-size:13px; color:rgba(245,240,232,.65); }
+.author-line .divider { width:1px; height:14px; background:rgba(255,255,255,.15); }
+.author-line .course { font-size:12px; color:rgba(245,240,232,.35); font-family:var(--mono); }
+
+/* ── SHARED GRID COMPONENTS ── */
+.three-col { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-bottom:36px; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:28px; margin-bottom:36px; align-items:start; }
+.grid-cell { background:var(--cream); padding:22px 20px; }
+.grid-cell.alt { background:#f0ece3; }
+.cell-label { font-family:var(--mono); font-size:10px; letter-spacing:.15em; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.cell-head { font-family:var(--serif); font-size:24px; margin-bottom:7px; }
+.cell-body { font-size:12px; color:var(--muted); line-height:1.6; }
+
+/* pipeline flow */
+.pipeline { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-bottom:32px; }
+.pipe-step { background:var(--cream); padding:22px 20px; position:relative; }
+.pipe-step.active { background:#f0ece3; }
+.pipe-n { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:10px; }
+.pipe-title { font-size:14px; font-weight:500; margin-bottom:6px; }
+.pipe-tag { display:inline-block; margin-top:8px; font-family:var(--mono); font-size:9px; padding:2px 6px; border-radius:2px; letter-spacing:.06em; }
+.tag-llm { background:rgba(192,57,43,.1); color:var(--accent); }
+.tag-sys { background:rgba(44,110,73,.1); color:var(--accent2); }
+.tag-data { background:rgba(26,82,118,.1); color:var(--accent3); }
+.pipe-desc { font-size:12px; color:var(--muted); line-height:1.5; margin-top:6px; }
+
+/* stat strip */
+.stat-strip { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); }
+.stat-cell { background:var(--cream); padding:18px 16px; }
+.stat-n { font-family:var(--serif); font-size:36px; margin-bottom:4px; }
+.stat-t { font-size:13px; font-weight:500; margin-bottom:4px; }
+.stat-d { font-size:12px; color:var(--muted); line-height:1.5; }
+
+/* data table */
+.data-table { border:1px solid var(--rule); border-radius:4px; overflow:hidden; }
+.data-table-header { background:var(--ink); color:var(--cream); padding:10px 16px; font-family:var(--mono); font-size:10px; letter-spacing:.15em; }
+.data-row { display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid var(--rule); }
+.data-row:last-child { border-bottom:none; }
+.data-row.alt { background:#f8f5ef; }
+.data-cell { padding:10px 14px; font-size:12px; color:var(--ink2); }
+.data-cell.head { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.08em; }
+
+/* react loop */
+.react-loop { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-bottom:28px; }
+.react-cell { background:var(--cream); padding:20px 18px; }
+.react-cell.thought { background:#fdf8f0; border-top:3px solid var(--gold); }
+.react-cell.action  { background:#f0f5f2; border-top:3px solid var(--accent2); }
+.react-cell.obs     { background:#f5f0f0; border-top:3px solid var(--accent3); }
+.react-label { font-family:var(--mono); font-size:9px; letter-spacing:.2em; text-transform:uppercase; margin-bottom:10px; }
+.react-head { font-size:13px; font-weight:500; margin-bottom:8px; }
+.react-body { font-size:12px; color:var(--muted); line-height:1.5; }
+
+/* card with left border accent */
+.accent-card { border-left:3px solid var(--accent); padding:14px 18px; background:white; border:1px solid var(--rule); border-left:3px solid var(--accent); border-radius:0 4px 4px 0; margin-bottom:10px; }
+.accent-card.green { border-left-color:var(--accent2); }
+.accent-card.blue  { border-left-color:var(--accent3); }
+.accent-card.gold  { border-left-color:var(--gold); }
+.accent-card-label { font-family:var(--mono); font-size:9px; letter-spacing:.18em; color:var(--muted); margin-bottom:4px; }
+.accent-card-text { font-size:13px; color:var(--ink2); line-height:1.5; }
+
+/* future grid */
+.future-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:32px; }
+.future-item { padding:18px 16px; border:1px solid var(--rule); border-radius:4px; }
+.future-phase { font-family:var(--mono); font-size:9px; letter-spacing:.18em; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.future-title { font-size:14px; font-weight:500; margin-bottom:6px; }
+.future-desc { font-size:12px; color:var(--muted); line-height:1.55; }
+
+/* row items */
+.row-item { display:flex; gap:12px; align-items:flex-start; margin-bottom:14px; }
+.row-num { font-family:var(--mono); font-size:11px; color:var(--accent); flex-shrink:0; margin-top:2px; }
+.row-text { font-size:14px; color:var(--ink2); line-height:1.6; }
+
+/* llm tag grid */
+.llm-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.llm-card { border:1px solid var(--rule); border-radius:4px; overflow:hidden; }
+.llm-card-head { padding:10px 14px; border-bottom:1px solid var(--rule); font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; display:flex; align-items:center; justify-content:space-between; }
+.llm-card-body { padding:14px; font-size:13px; color:var(--ink2); line-height:1.6; }
+.badge { display:inline-block; font-family:var(--mono); font-size:9px; padding:2px 7px; border-radius:2px; letter-spacing:.06em; }
+.badge-red { background:rgba(192,57,43,.1); color:var(--accent); }
+.badge-green { background:rgba(44,110,73,.1); color:var(--accent2); }
+.badge-blue { background:rgba(26,82,118,.1); color:var(--accent3); }
+.badge-gold { background:rgba(183,134,11,.12); color:var(--gold); }</style>
+</head>
+<body>
+
+<div class="progress"><div class="progress-fill" id="prog"></div></div>
+
+<!-- ══════════════════════════════════════════════
+     S1 · TITLE
+══════════════════════════════════════════════ -->
+<section class="slide" id="s1">
+  <div class="bg-grid"></div>
+  <div class="slide-num">01 / 12</div>
+  <div class="eyebrow">11-766 · Large Language Model Applications · CMU</div>
+  <h1>Find your<br><em>perfect advisor.</em></h1>
+  <p class="subtitle">FindMyAdvisor — LLM-powered deep research for personalized academic advisor matching</p>
+  <div class="author-line">
+    <span class="name">Gefei Gu</span>
+    <span class="divider"></span>
+    <span class="name">Yaxin Zhou</span>
+    <span class="divider"></span>
+    <span class="course">Applied Track · Spring 2025 · CMU</span>
+  </div>
+  <!-- Logo: right side, vertically centered -->
+  <div style="position:absolute; right:8%; top:50%; transform:translateY(-50%); width:200px; opacity:0.85;">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+      <path d="M 40 290 Q 200 270 360 290 Q 200 280 40 290 Z" fill="#f5f0e8" />
+      <g stroke="#f5f0e8" fill="#f5f0e8">
+        <line x1="200" y1="170" x2="200" y2="284" stroke-width="8" />
+        <line x1="200" y1="175" x2="145" y2="284" stroke-width="8" stroke-linecap="round" />
+        <line x1="200" y1="175" x2="255" y2="284" stroke-width="8" stroke-linecap="round" />
+        <rect x="140" y="280" width="10" height="8" rx="2" transform="rotate(25, 145, 284)" />
+        <rect x="250" y="280" width="10" height="8" rx="2" transform="rotate(-25, 255, 284)" />
+        <rect x="195" y="280" width="10" height="8" rx="2" />
+        <rect x="182" y="170" width="36" height="8" rx="2" />
+        <rect x="194" y="150" width="12" height="25" />
+      </g>
+      <g transform="translate(200, 155) rotate(-22)">
+        <rect x="-10" y="10" width="20" height="10" fill="#f5f0e8" />
+        <rect x="-105" y="-5" width="15" height="10" fill="#f5f0e8" rx="2" />
+        <polygon points="-90,-7 -75,-9 -75,9 -90,7" fill="#f5f0e8" />
+        <polygon points="-73,-9 -20,-12 -20,12 -73,9" fill="#f5f0e8" />
+        <polygon points="-18,-12 50,-16 50,16 -18,12" fill="#f5f0e8" />
+        <polygon points="52,-16 95,-22 95,22 52,16" fill="#f5f0e8" />
+        <ellipse cx="95" cy="0" rx="4.5" ry="22" fill="#1a1612" stroke="#f5f0e8" stroke-width="2" />
+      </g>
+      <text x="200" y="350" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" font-weight="bold" letter-spacing="4" text-anchor="middle" fill="#f5f0e8">FindMyAdvisor</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S2 · MOTIVATION
+══════════════════════════════════════════════ -->
+<section class="slide" id="s2">
+  <div class="slide-num">02 / 12</div>
+  <div class="slide-label">The Problem</div>
+  <h2>Finding a research advisor<br>is time-consuming.</h2>
+
+  <div style="font-size:14px;color:var(--ink2);line-height:1.75;max-width:680px;margin-bottom:32px;">
+    Each year, thousands of students seek research opportunities at universities — yet identifying the right advisor remains <strong>time-consuming and cognitively demanding</strong>, with no systematic tool to help.
+  </div>
+
+  <div class="three-col">
+    <div class="grid-cell">
+      <div class="cell-label">Pain Point · 01</div>
+      <div class="cell-head" style="color:var(--muted)">Time Consuming</div>
+      <div class="cell-body">Hundreds of faculty pages, browsed one by one, with no way to compare alignment</div>
+    </div>
+    <div class="grid-cell alt">
+      <div class="cell-label">Pain Point · 02</div>
+      <div class="cell-head" style="color:var(--gold)">Static & Stale</div>
+      <div class="cell-body">Profiles don't reflect current funding, open positions, or recent research pivots</div>
+    </div>
+    <div class="grid-cell">
+      <div class="cell-label">Pain Point · 03</div>
+      <div class="cell-head" style="color:var(--accent)">No Personalization</div>
+      <div class="cell-body">No feedback on how a CV or SOP aligns with any specific advisor's trajectory</div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S2.5 · OUR SOLUTION
+══════════════════════════════════════════════ -->
+<section class="slide" id="s2b">
+  <div class="slide-num">03 / 12</div>
+  <div class="slide-label">Our Solution</div>
+  <h2>We match you with the right advisor —<br><em style="font-style:italic;color:var(--accent2)">intelligently and instantly.</em></h2>
+
+  <div style="max-width:560px;margin-bottom:40px;">
+    <div style="border:1px solid var(--rule);border-radius:4px;overflow:hidden;">
+      <div style="background:var(--ink);color:var(--cream);padding:14px 18px;font-family:var(--mono);font-size:10px;letter-spacing:.15em;">WHAT WE AIM FOR</div>
+      <div style="padding:20px 18px;display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <span style="color:var(--accent2);font-size:15px;flex-shrink:0;margin-top:2px;">→</span>
+          <span style="font-size:14px;color:var(--ink2);line-height:1.6;">Reduce advisor research from <strong>weeks to minutes</strong></span>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <span style="color:var(--accent2);font-size:15px;flex-shrink:0;margin-top:2px;">→</span>
+          <span style="font-size:14px;color:var(--ink2);line-height:1.6;">Surface <strong>live signals</strong> — funding, open positions, recent pivots — that no static profile captures</span>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <span style="color:var(--accent2);font-size:15px;flex-shrink:0;margin-top:2px;">→</span>
+          <span style="font-size:14px;color:var(--ink2);line-height:1.6;">Give every applicant <strong>personalized, actionable guidance</strong> — not a generic ranked list</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S2c · HOW IT WORKS
+══════════════════════════════════════════════ -->
+<section class="slide" id="s2c">
+  <div class="slide-num">04 / 12</div>
+  <div class="slide-label">How It Works</div>
+  <h2>Three steps.<br>From a blank page to a shortlist.</h2>
+
+  <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:4px;overflow:hidden;max-width:720px;margin-bottom:36px;">
+    <div style="display:grid;grid-template-columns:56px 1fr;border-bottom:1px solid var(--rule);">
+      <div style="background:#f0ece3;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted);border-right:1px solid var(--rule);">01</div>
+      <div style="padding:20px 24px;">
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">Upload your materials</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">Drop in your CV and draft SOP. The system parses them and builds a structured academic profile — research interests, technical background, prior work — automatically.</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:56px 1fr;border-bottom:1px solid var(--rule);background:#f8f5ef;">
+      <div style="background:#f0ece3;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted);border-right:1px solid var(--rule);">02</div>
+      <div style="padding:20px 24px;">
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">Agent researches in real time</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">An autonomous agent browses faculty homepages, grant databases, and recent publications — gathering live signals that static profiles never surface.</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:56px 1fr;">
+      <div style="background:#f0ece3;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted);border-right:1px solid var(--rule);">03</div>
+      <div style="padding:20px 24px;">
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">Receive your personalized shortlist</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">A ranked list of advisors with match scores, verified tags, and targeted SOP revision suggestions — specific to each advisor's current research direction.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S3 · SYSTEM OVERVIEW
+══════════════════════════════════════════════ -->
+<section class="slide" id="s3">
+  <div class="slide-num">05 / 12</div>
+  <div class="slide-label">System Architecture</div>
+  <h2>Three stages.<br>From a CV to a ranked shortlist.</h2>
+
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-n">Stage · 01</div>
+      <div class="pipe-title">Semantic Recall</div>
+      <div class="pipe-desc">Parse CV & SOP → extract research entities → dense embedding retrieval over faculty abstract database → top-50 candidate pool</div>
+      <div><span class="pipe-tag tag-data">BAAI/bge-m3</span> <span class="pipe-tag tag-sys">FAISS</span></div>
+    </div>
+    <div class="pipe-step active">
+      <div class="pipe-n">Stage · 02</div>
+      <div class="pipe-title">Deep Research Reranking</div>
+      <div class="pipe-desc">Autonomous ReAct agent browses faculty homepages, lab pages, grant databases → extracts real-time dynamic signals → reranks to top-10</div>
+      <div><span class="pipe-tag tag-llm">ReAct Agent</span> <span class="pipe-tag tag-llm">GPT-4</span></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-n">Stage · 03</div>
+      <div class="pipe-title">Personalized Output</div>
+      <div class="pipe-desc">Composite match score computed → top-10 advisor cards generated → targeted SOP revision suggestions grounded in each advisor's deep research report</div>
+      <div><span class="pipe-tag tag-llm">LLM-as-Judge</span></div>
+    </div>
+  </div>
+
+  <div class="stat-strip">
+    <div class="stat-cell">
+      <div class="stat-n" style="color:var(--accent2)">300+</div>
+      <div class="stat-t">Faculty indexed</div>
+      <div class="stat-d">LTI, MLD, CSD, and RI — all scraped and embedded</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n" style="color:var(--gold)">50→10</div>
+      <div class="stat-t">Recall then rerank</div>
+      <div class="stat-d">Broad recall first, then precision via the deep research agent</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n" style="color:var(--accent)">5×</div>
+      <div class="stat-t">LLM integration points</div>
+      <div class="stat-d">Extraction, reasoning, synthesis, revision, evaluation</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S5 · STAGE 1 SEMANTIC RECALL
+══════════════════════════════════════════════ -->
+<section class="slide" id="s6b">
+  <div class="slide-num">06 / 12</div>
+  <div class="slide-label">Stage 02 · Deep Research Agent</div>
+  <h2>System architecture.</h2>
+
+  <div style="width:100%;max-width:780px;">
+    <svg width="100%" viewBox="0 0 680 440" role="img">
+      <title>FindMyAdvisor architecture diagram</title>
+      <desc>Pipeline from user input through embedding retrieval to the ReAct agent loop and final ranked output</desc>
+      <defs>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- USER INPUT -->
+      <rect x="20" y="30" width="120" height="52" rx="6" fill="#f0ece3" stroke="#d5cfc4" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#3d3830" x="80" y="52" text-anchor="middle" dominant-baseline="central" font-weight="500">User input</text>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#8a8070" x="80" y="68" text-anchor="middle" dominant-baseline="central">CV + SOP + query</text>
+
+      <!-- arrow down -->
+      <line x1="80" y1="82" x2="80" y2="112" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+
+      <!-- EMBEDDER -->
+      <rect x="20" y="112" width="120" height="52" rx="6" fill="#ede9f8" stroke="#9d94d8" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#3c3489" x="80" y="134" text-anchor="middle" dominant-baseline="central" font-weight="500">Embedder</text>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#534ab7" x="80" y="150" text-anchor="middle" dominant-baseline="central">BAAI/bge-m3</text>
+
+      <!-- arrow right -->
+      <line x1="140" y1="138" x2="176" y2="138" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+
+      <!-- FAISS -->
+      <rect x="176" y="112" width="124" height="52" rx="6" fill="#ede9f8" stroke="#9d94d8" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#3c3489" x="238" y="134" text-anchor="middle" dominant-baseline="central" font-weight="500">FAISS index</text>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#534ab7" x="238" y="150" text-anchor="middle" dominant-baseline="central">300+ profiles</text>
+
+      <!-- arrow right: top-50 -->
+      <line x1="300" y1="138" x2="336" y2="138" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#8a8070" x="318" y="130" text-anchor="middle">top 50</text>
+
+      <!-- ─── REACT AGENT BOX ─── -->
+      <rect x="336" y="72" width="240" height="196" rx="10" fill="none" stroke="#d5cfc4" stroke-width="1"/>
+      <text font-family="'DM Mono', monospace" font-size="9" fill="#8a8070" letter-spacing="1" x="456" y="92" text-anchor="middle">ReAct agent  ·  up to 4 loops</text>
+
+      <!-- Thought -->
+      <rect x="350" y="100" width="212" height="38" rx="5" fill="#fdf3dc" stroke="#d4a017" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#7a4f0b" x="456" y="119" text-anchor="middle" dominant-baseline="central" font-weight="500">Thought</text>
+      <line x1="456" y1="138" x2="456" y2="150" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+
+      <!-- Action -->
+      <rect x="350" y="150" width="212" height="38" rx="5" fill="#e1f5ee" stroke="#2c6e49" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#0f6e56" x="456" y="169" text-anchor="middle" dominant-baseline="central" font-weight="500">Action</text>
+      <line x1="456" y1="188" x2="456" y2="200" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+
+      <!-- Observation -->
+      <rect x="350" y="200" width="212" height="38" rx="5" fill="#e1f5ee" stroke="#2c6e49" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#0f6e56" x="456" y="219" text-anchor="middle" dominant-baseline="central" font-weight="500">Observation</text>
+
+      <!-- loop arrow -->
+      <path d="M562 238 L578 238 L578 118 L562 118" fill="none" stroke="#d5cfc4" stroke-width="0.75" marker-end="url(#arrow2)"/>
+      <text font-family="'DM Sans', sans-serif" font-size="13" fill="#8a8070" x="590" y="182" text-anchor="middle">↺</text>
+
+      <!-- ─── TOOLS ─── -->
+      <text font-family="'DM Mono', monospace" font-size="9" fill="#8a8070" x="456" y="290" text-anchor="middle">tools</text>
+      <rect x="350" y="300" width="96" height="36" rx="5" fill="#f0ece3" stroke="#d5cfc4" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="10" fill="#3d3830" x="398" y="318" text-anchor="middle" dominant-baseline="central">web_search</text>
+      <rect x="456" y="300" width="120" height="36" rx="5" fill="#f0ece3" stroke="#d5cfc4" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="10" fill="#3d3830" x="516" y="318" text-anchor="middle" dominant-baseline="central">fetch_homepage</text>
+
+      <!-- dotted lines action → tools -->
+      <line x1="420" y1="188" x2="398" y2="300" stroke="#d5cfc4" stroke-width="0.75" stroke-dasharray="3 3" marker-end="url(#arrow2)"/>
+      <line x1="492" y1="188" x2="516" y2="300" stroke="#d5cfc4" stroke-width="0.75" stroke-dasharray="3 3" marker-end="url(#arrow2)"/>
+
+      <!-- ─── OUTPUT ─── -->
+      <line x1="456" y1="268" x2="456" y2="356" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#8a8070" x="468" y="344">done</text>
+
+      <rect x="336" y="356" width="240" height="56" rx="6" fill="#faece7" stroke="#c0392b" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#712b13" x="456" y="376" text-anchor="middle" dominant-baseline="central" font-weight="500">Structured report</text>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#993c1d" x="456" y="396" text-anchor="middle" dominant-baseline="central">tags · recruiting · rationale</text>
+
+      <!-- arrow left back -->
+      <line x1="336" y1="384" x2="300" y2="384" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+
+      <!-- RANKING -->
+      <rect x="176" y="358" width="124" height="52" rx="6" fill="#f0ece3" stroke="#d5cfc4" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#3d3830" x="238" y="380" text-anchor="middle" dominant-baseline="central" font-weight="500">Sort by score</text>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#8a8070" x="238" y="396" text-anchor="middle" dominant-baseline="central">top-10 selected</text>
+
+      <!-- arrow left -->
+      <line x1="176" y1="384" x2="140" y2="384" stroke="#8a8070" stroke-width="1" marker-end="url(#arrow2)"/>
+
+      <!-- FINAL OUTPUT -->
+      <rect x="20" y="358" width="120" height="52" rx="6" fill="#f0ece3" stroke="#d5cfc4" stroke-width="0.5"/>
+      <text font-family="'DM Mono', monospace" font-size="11" fill="#3d3830" x="80" y="380" text-anchor="middle" dominant-baseline="central" font-weight="500">Top-10 results</text>
+      <text font-family="'DM Sans', sans-serif" font-size="10" fill="#8a8070" x="80" y="396" text-anchor="middle" dominant-baseline="central">shown to user</text>
+
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S6a · DEEP RESEARCH AGENT — HOW IT WORKS
+══════════════════════════════════════════════ -->
+<section class="slide" id="s5">
+  <div class="slide-num">07 / 12</div>
+  <div class="slide-label">Stage 01 · Semantic Recall</div>
+  <h2>Stage 01:<br>Semantic Recall.</h2>
+
+  <div class="two-col">
+    <div>
+      <div class="row-item">
+        <div class="row-num">01</div>
+        <div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:4px;">LLM Profile Extraction</div>
+          <div class="row-text" style="font-size:13px;">GPT-4 parses the uploaded CV and SOP → extracts research interests, technical skills, and prior project context</div>
+        </div>
+      </div>
+      <div class="row-item">
+        <div class="row-num">02</div>
+        <div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:4px;">Embedding with BAAI/bge-m3</div>
+          <div class="row-text" style="font-size:13px;">Encodes both the user profile and all faculty abstracts into a shared vector space</div>
+        </div>
+      </div>
+      <div class="row-item">
+        <div class="row-num">03</div>
+        <div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:4px;">FAISS ANN Search</div>
+          <div class="row-text" style="font-size:13px;">Approximate nearest-neighbor search over the faculty database → top-50 candidates passed to the agent</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:20px;">
+      <div style="border:1px solid var(--rule);border-radius:4px;overflow:hidden;">
+        <div style="background:var(--ink);color:var(--cream);padding:12px 16px;font-family:var(--mono);font-size:10px;letter-spacing:.15em;">OUTPUT</div>
+        <div style="padding:20px;">
+          <div style="font-family:var(--serif);font-size:36px;color:var(--ink);margin-bottom:6px;">Top 50</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">Semantically aligned faculty candidates, passed to the ReAct agent for deep research and reranking</div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--rule);border-radius:4px;padding:16px;">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--muted);margin-bottom:8px;">FACULTY DATABASE</div>
+        <div style="font-size:13px;color:var(--ink2);line-height:1.6;">300+ profiles across CMU LTI, MLD, CSD, and RI — scraped and pre-embedded</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S6b · DEEP RESEARCH AGENT — ARCHITECTURE
+══════════════════════════════════════════════ -->
+<section class="slide" id="s6a" style="background:#f0ece3;">
+  <div class="slide-num">08 / 12</div>
+  <div class="slide-label">Stage 02 · Deep Research Agent</div>
+  <h2>Stage 02:<br>Deep Research Agent.</h2>
+
+  <div class="react-loop" style="margin-bottom:32px;">
+    <div class="react-cell thought">
+      <div class="react-label" style="color:var(--gold);">Thought</div>
+      <div class="react-head">Reason</div>
+      <div class="react-body">Decides what to look up next — recruiting status, recent publications, or lab activity</div>
+    </div>
+    <div class="react-cell action">
+      <div class="react-label" style="color:var(--accent2);">Action</div>
+      <div class="react-head">Act</div>
+      <div class="react-body">Calls one of two tools: <strong>web_search</strong> via DuckDuckGo, or <strong>fetch_homepage</strong> to read a URL in full</div>
+    </div>
+    <div class="react-cell obs">
+      <div class="react-label" style="color:var(--accent3);">Observation</div>
+      <div class="react-head">Update</div>
+      <div class="react-body">Reads the result, updates its understanding, and decides whether to loop again or produce output</div>
+    </div>
+  </div>
+
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--muted);margin-bottom:14px;">THE LOOP RUNS UP TO 4 TIMES PER PROFESSOR</div>
+  <div style="display:flex;align-items:center;gap:0;max-width:600px;">
+    <div style="text-align:center;width:40px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--rule);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--ink2);">1</div>
+    </div>
+    <div style="flex:1;height:2px;background:var(--rule);"></div>
+    <div style="text-align:center;width:40px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--rule);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--ink2);">2</div>
+    </div>
+    <div style="flex:1;height:2px;background:var(--rule);"></div>
+    <div style="text-align:center;width:40px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--rule);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--ink2);">3</div>
+    </div>
+    <div style="flex:1;height:2px;background:var(--accent2);"></div>
+    <div style="text-align:center;width:40px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--accent2);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:white;">4</div>
+    </div>
+    <div style="flex:1;height:2px;background:var(--accent2);"></div>
+    <div style="width:80px;padding:6px 10px;background:var(--ink);border-radius:3px;font-size:11px;color:var(--cream);text-align:center;font-family:var(--mono);">output</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S7 · STAGE 3 OUTPUT
+══════════════════════════════════════════════ -->
+<section class="slide" id="s7">
+  <div class="slide-num">09 / 12</div>
+  <div class="slide-label">Stage 03 · Personalized Output</div>
+  <h2>Stage 03:<br>Personalized Output.</h2>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
+    <div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--muted);margin-bottom:18px;">OUTPUT 01 · ADVISOR CARDS</div>
+      <div class="accent-card" style="margin-bottom:10px;">
+        <div class="accent-card-label">Research tags</div>
+        <div class="accent-card-text">3–4 keyword labels extracted from live web content — reflects what the professor is working on now</div>
+      </div>
+      <div class="accent-card" style="margin-bottom:10px;">
+        <div class="accent-card-label">Recruiting status</div>
+        <div class="accent-card-text">Yes / No / Unknown — inferred by the agent from current homepage and lab news</div>
+      </div>
+      <div class="accent-card" style="margin-bottom:10px;">
+        <div class="accent-card-label">Key finding</div>
+        <div class="accent-card-text">One specific discovery — a recent paper, grant, or open position found during research</div>
+      </div>
+      <div class="accent-card">
+        <div class="accent-card-label">Match rationale</div>
+        <div class="accent-card-text">2–3 sentences explaining why this advisor fits the student's background and interests</div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--muted);margin-bottom:18px;">OUTPUT 02 · SOP REVISION</div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7;margin-bottom:20px;">
+        After selecting an advisor, the user can request targeted revision suggestions for their SOP. Each suggestion contains:
+      </div>
+      <div class="accent-card green" style="margin-bottom:10px;">
+        <div class="accent-card-label">Original</div>
+        <div class="accent-card-text">A passage from the user's uploaded CV or SOP that could be strengthened</div>
+      </div>
+      <div class="accent-card green" style="margin-bottom:10px;">
+        <div class="accent-card-label">Revised</div>
+        <div class="accent-card-text">A rewritten version that echoes the advisor's research language and current projects</div>
+      </div>
+      <div class="accent-card green">
+        <div class="accent-card-label">Reason</div>
+        <div class="accent-card-text">One sentence explaining why the revision improves alignment with this specific advisor</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S9 · HOW WE USE LLMs
+══════════════════════════════════════════════ -->
+<section class="slide" id="s9">
+  <div class="slide-num">10 / 12</div>
+  <div class="slide-label">LLM Integration</div>
+  <h2>Language models are used<br>at five points in the pipeline.</h2>
+
+  <div class="llm-grid" style="margin-bottom:0;">
+    <div class="llm-card">
+      <div class="llm-card-head">CV / SOP Parsing <span class="badge badge-red">LLM</span></div>
+      <div class="llm-card-body">User's uploaded materials are parsed and combined into a query that feeds the embedding retrieval step</div>
+    </div>
+    <div class="llm-card">
+      <div class="llm-card-head">ReAct Agent Loop <span class="badge badge-gold">ReAct</span></div>
+      <div class="llm-card-body">Drives the full Thought → Action → Observation loop — decides what to search, reads results, updates understanding, loops up to 4 times per professor</div>
+    </div>
+    <div class="llm-card">
+      <div class="llm-card-head">Report Generation <span class="badge badge-gold">ReAct</span></div>
+      <div class="llm-card-body">At loop end, LLM outputs a structured JSON — tags, recruiting status, match rationale, key finding</div>
+    </div>
+    <div class="llm-card">
+      <div class="llm-card-head">Ranking <span class="badge badge-gold">ReAct</span></div>
+      <div class="llm-card-body">The score in each report is LLM-generated — candidates are sorted by this score to produce the final top-10</div>
+    </div>
+    <div class="llm-card">
+      <div class="llm-card-head">SOP Revision <span class="badge badge-red">LLM</span></div>
+      <div class="llm-card-body">Generates paragraph-level suggestions grounded in the advisor's research — original → revised → reason</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     DEMO
+══════════════════════════════════════════════ -->
+<section class="slide" id="sdemo" style="background:var(--ink);">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.28em;color:var(--muted);text-transform:uppercase;margin-bottom:28px;">Live</div>
+    <div style="font-family:var(--serif);font-size:clamp(60px,9vw,100px);line-height:1.0;color:var(--cream);">Demo</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S11 · NEXT STEPS
+══════════════════════════════════════════════ -->
+<section class="slide" id="s11">
+  <div class="slide-num">11 / 12</div>
+  <div style="width:100%;height:1px;background:var(--rule);margin-bottom:40px;"></div>
+  <h2>What's Next</h2>
+
+  <div class="future-grid">
+    <div class="future-item">
+      <div class="future-phase">Direction · 01</div>
+      <div class="future-title">Expand Coverage</div>
+      <div class="future-desc">Scale from CMU to top-30 U.S. CS programs · Automated pipelines to keep profiles current</div>
+    </div>
+    <div class="future-item">
+      <div class="future-phase">Direction · 02</div>
+      <div class="future-title">Smarter Agent</div>
+      <div class="future-desc">More tools — Google Scholar MCP, Semantic Scholar · Stronger reasoning · Fewer hallucinations</div>
+    </div>
+    <div class="future-item">
+      <div class="future-phase">Direction · 03</div>
+      <div class="future-title">More Features</div>
+      <div class="future-desc">Cold-outreach email drafting · Application timeline planner · Co-advisor matching</div>
+    </div>
+  </div>
+
+  <div class="pull-quote" style="border-color:var(--ink2);">
+    Pushing FindMyAdvisor beyond a course project.
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     S12 · THANK YOU / Q&A
+══════════════════════════════════════════════ -->
+<section class="slide" id="s12">
+  <div class="slide-num">12 / 12</div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin-bottom:32px;">Thank You</div>
+    <div style="font-family:var(--serif);font-size:clamp(52px,7vw,88px);line-height:1.05;color:var(--ink);margin-bottom:40px;">Q & A</div>
+    <div style="width:48px;height:1px;background:var(--rule);margin:0 auto 40px;"></div>
+    <div style="font-size:14px;color:var(--muted);line-height:1.8;font-family:var(--mono);">
+      FindMyAdvisor<br>
+      Yaxin Zhou · Gefei Gu · CMU 11-766
+    </div>
+    <div style="margin-top:32px;font-family:var(--mono);font-size:11px;color:var(--rule);">
+      github.com/zyx0714/find-my-advisor
+    </div>
+  </div>
+</section>
+
+<nav class="nav">
+  <button class="nav-btn" id="prev">↑</button>
+  <button class="nav-btn" id="next">↓</button>
+</nav>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const prog = document.getElementById('prog');
+let current = 0;
+
+function goTo(i) {
+  i = Math.max(0, Math.min(slides.length - 1, i));
+  current = i;
+  slides[i].scrollIntoView({ behavior: 'smooth' });
+  prog.style.width = ((i + 1) / slides.length * 100) + '%';
+}
+
+document.getElementById('next').onclick = () => goTo(current + 1);
+document.getElementById('prev').onclick = () => goTo(current - 1);
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowDown'||e.key==='ArrowRight') goTo(current+1);
+  if (e.key==='ArrowUp'  ||e.key==='ArrowLeft' ) goTo(current-1);
+});
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      current = Array.from(slides).indexOf(e.target);
+      prog.style.width = ((current + 1) / slides.length * 100) + '%';
+    }
+  });
+}, { threshold: 0.3 });
+
+slides.forEach(s => obs.observe(s));
+goTo(0);
+</script>
+</body>
+</html>
